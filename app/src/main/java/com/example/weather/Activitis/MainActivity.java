@@ -17,6 +17,7 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import com.example.weather.Adapters.HourlyAdapters;
 import com.example.weather.Api.WeatherApi;
 import com.example.weather.Domains.Hourly;
+import com.example.weather.Helper.WeatherNotificationHelper;
 import com.example.weather.Model.ForecastResponse;
 import com.example.weather.Model.HourlyItem;
 import com.example.weather.Model.WeatherResponse;
@@ -29,6 +30,7 @@ import java.util.List;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
+
 
 public class MainActivity extends AppCompatActivity {
 
@@ -43,6 +45,7 @@ public class MainActivity extends AppCompatActivity {
 
     private double currentLat = 0;
     private double currentLon = 0;
+    private WeatherNotificationHelper notificationHelper;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -56,6 +59,7 @@ public class MainActivity extends AppCompatActivity {
         txtCity      = findViewById(R.id.txtCity);
         imgWeather   = findViewById(R.id.imgWeather);
         swipeRefresh = findViewById(R.id.swipeRefresh);
+        notificationHelper = new WeatherNotificationHelper(this);
 
         recyclerView = findViewById(R.id.view1);
         recyclerView.setLayoutManager(
@@ -84,6 +88,23 @@ public class MainActivity extends AppCompatActivity {
             intent.putExtra("lon", currentLon);
             startActivity(intent);
         });
+        //test thông báo khi có thời tiết xấu
+        if (true) {
+            String[] testCases = {
+                    "thunderstorm", "heavy rain", "rain",
+                    "snow", "fog", "wind", "clear sky"
+            };
+            final int[] index = {0};
+
+            // Thêm Button vào layout, hoặc dùng long-click vào txtCity để test
+            txtCity.setOnLongClickListener(v -> {
+                String weather = testCases[index[0] % testCases.length];
+                notificationHelper.notifyIfBadWeather(weather);
+                Toast.makeText(this, "Test: " + weather, Toast.LENGTH_SHORT).show();
+                index[0]++;
+                return true;
+            });
+        }
 
     }
 
@@ -153,6 +174,7 @@ public class MainActivity extends AppCompatActivity {
                         txtHumidity.setText(humidity + "%");
                         txtWind    .setText(wind + " m/s");
                         txtCity    .setText(city);
+                        notificationHelper.notifyIfBadWeather(desc);
 
                         int resId = getResources().getIdentifier(
                                 getWeatherPic(desc), "drawable", getPackageName());
