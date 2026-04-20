@@ -21,6 +21,7 @@ import com.example.weather.Model.ForecastResponse;
 import com.example.weather.Model.HourlyItem;
 import com.example.weather.R;
 import com.example.weather.Retrofit.RetrofitClient;
+import com.google.android.material.switchmaterial.SwitchMaterial;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -53,6 +54,12 @@ public class FutureActivity extends AppCompatActivity {
     // Tọa độ nhận từ MainActivity (truyền qua Intent)
     private double currentLat = 21.0285;
     private double currentLon = 105.8542;
+    private SwitchMaterial switchUnit;
+    private boolean isCelsius = true;
+
+    // Lưu dữ liệu gốc (°C) để convert lại
+    private int lastAvgTempC = 0;
+    private ArrayList<FutureDomains> lastItems = new ArrayList<>();
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -140,6 +147,7 @@ public class FutureActivity extends AppCompatActivity {
                             txtWind    .setText(String.format(Locale.getDefault(), "%.1f km/h", avgWind * 3.6f));
                             txtHumidity.setText(String.format(Locale.getDefault(), "%.0f%%", avgHumid));
                             imgTomorrow.setImageResource(getWeatherDrawable(desc));
+                            lastAvgTempC = avgTemp;
 
                         }
 
@@ -174,6 +182,8 @@ public class FutureActivity extends AppCompatActivity {
 
                         adapterTomorrow = new FutureAdapters(items);
                         recyclerView.setAdapter(adapterTomorrow);
+                        lastItems = items;
+                        updateRecyclerView();
                     }
 
                     @Override
@@ -220,5 +230,31 @@ public class FutureActivity extends AppCompatActivity {
         backBtn.setOnClickListener(v ->
                 startActivity(new Intent(FutureActivity.this, MainActivity.class))
         );
+        switchUnit = findViewById(R.id.switchUnit);
+        switchUnit.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            isCelsius = !isChecked;
+            updateTomorrowTemp();
+            updateRecyclerView();
+        });
+    }
+    private void updateTomorrowTemp() {
+        if (isCelsius) {
+            txtTomorrowTemp.setText(lastAvgTempC + "°C");
+        } else {
+            int f = Math.round(lastAvgTempC * 9f / 5f + 32f);
+            txtTomorrowTemp.setText(f + "°F");
+        }
+    }
+
+    private void updateRecyclerView() {
+        if (lastItems.isEmpty()) return;
+        ArrayList<FutureDomains> converted = new ArrayList<>();
+        for (FutureDomains d : lastItems) {
+            int max = isCelsius ? d.getHighTemp() : Math.round(d.getHighTemp() * 9f / 5f + 32f);
+            int min = isCelsius ? d.getLowTemp() : Math.round(d.getLowTemp() * 9f / 5f + 32f);
+            converted.add(new FutureDomains(d.getDay(), d.getPicPath(), d.getStatus(), max, min));
+        }
+        adapterTomorrow = new FutureAdapters(converted);
+        recyclerView.setAdapter(adapterTomorrow);
     }
 }

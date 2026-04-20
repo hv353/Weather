@@ -1,14 +1,13 @@
 package com.example.weather.Activitis;
 
 import android.content.Intent;
-import android.content.pm.PackageManager;
+
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -30,6 +29,7 @@ import java.util.List;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
+import com.google.android.material.switchmaterial.SwitchMaterial;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -38,7 +38,6 @@ public class MainActivity extends AppCompatActivity {
     private RecyclerView.Adapter adapterHourly;
     private TextView txtTemp, txtDesc, txtHumidity, txtWind, txtCity;
     private ImageView imgWeather;
-    private Button btnLocation;
     private SwipeRefreshLayout swipeRefresh; // ← thêm mới
 
     private static final String API_KEY = "37c6ba63ded1fc4c85bbb65eb2846d0d";
@@ -46,6 +45,11 @@ public class MainActivity extends AppCompatActivity {
     private double currentLat = 0;
     private double currentLon = 0;
     private WeatherNotificationHelper notificationHelper;
+    // Thêm fields:
+    private SwitchMaterial switchUnit;
+    private boolean isCelsius = true;
+    private float lastTempC = 0f;
+    private ArrayList<Hourly> lastHourlyItems = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -77,7 +81,14 @@ public class MainActivity extends AppCompatActivity {
         swipeRefresh.setOnRefreshListener(() -> fetchLocationAndLoad());
         setVariable();
         initLocation();
+        switchUnit = findViewById(R.id.switchUnit);
+        switchUnit.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            isCelsius = !isChecked;
+            updateTempDisplay();
+            updateHourlyDisplay();
+        });
     }
+
 
     // ── Các nút bấm ─────────────────────────────────────────────────────────
     private void setVariable() {
@@ -105,6 +116,13 @@ public class MainActivity extends AppCompatActivity {
                 return true;
             });
         }
+        TextView mapBtn = findViewById(R.id.mapBtn);
+        mapBtn.setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, MapActivity.class);
+            intent.putExtra("lat", currentLat);
+            intent.putExtra("lon", currentLon);
+            startActivity(intent);
+        });
 
     }
 
@@ -179,6 +197,8 @@ public class MainActivity extends AppCompatActivity {
                         int resId = getResources().getIdentifier(
                                 getWeatherPic(desc), "drawable", getPackageName());
                         imgWeather.setImageResource(resId);
+                        lastTempC = data.getMain().getTemp();
+                        updateTempDisplay();
                     }
 
                     @Override
@@ -213,6 +233,9 @@ public class MainActivity extends AppCompatActivity {
 
                         adapterHourly = new HourlyAdapters(items);
                         recyclerView.setAdapter(adapterHourly);
+                        // Lưu lại items gốc (Celsius)
+                        lastHourlyItems = items;
+                        updateHourlyDisplay(); // thay vì set adapter trực tiếp
                     }
 
                     @Override
@@ -220,6 +243,25 @@ public class MainActivity extends AppCompatActivity {
                         t.printStackTrace();
                     }
                 });
+    }
+    private void updateTempDisplay() {
+        if (isCelsius) {
+            txtTemp.setText(String.format("%.0f°C", lastTempC));
+        } else {
+            float f = lastTempC * 9f / 5f + 32f;
+            txtTemp.setText(String.format("%.0f°F", f));
+        }
+    }
+
+    private void updateHourlyDisplay() {
+        if (lastHourlyItems.isEmpty()) return;
+        ArrayList<Hourly> converted = new ArrayList<>();
+        for (Hourly h : lastHourlyItems) {
+            int temp = isCelsius ? h.getTemp() : Math.round(h.getTemp() * 9f / 5f + 32f);
+            converted.add(new Hourly(h.getHour(), temp, h.getPicPath()));
+        }
+        adapterHourly = new HourlyAdapters(converted);
+        recyclerView.setAdapter(adapterHourly);
     }
 
     // ── Icon theo mô tả thời tiết ────────────────────────────────────────────
